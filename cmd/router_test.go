@@ -18,7 +18,7 @@ func setupRouter(t *testing.T) http.Handler {
 func TestRouterShortenThenRedirect(t *testing.T) {
 	router := setupRouter(t)
 
-	postReq := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(`{"url":"https://example.com"}`))
+	postReq := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", strings.NewReader(`{"url":"https://example.com"}`))
 	postRec := httptest.NewRecorder()
 	router.ServeHTTP(postRec, postReq)
 
@@ -26,12 +26,12 @@ func TestRouterShortenThenRedirect(t *testing.T) {
 		t.Fatalf("POST /shorten status = %d, want %d, body = %q", postRec.Code, http.StatusCreated, postRec.Body)
 	}
 
-	var resp shortenResponse
+	var resp ShortenResponse
 	if err := json.NewDecoder(postRec.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	getReq := httptest.NewRequest(http.MethodGet, "/"+resp.Code, nil)
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/"+resp.Code, nil)
 	getRec := httptest.NewRecorder()
 	router.ServeHTTP(getRec, getReq)
 
@@ -46,7 +46,7 @@ func TestRouterShortenThenRedirect(t *testing.T) {
 func TestRouterUnknownCode(t *testing.T) {
 	router := setupRouter(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/xyz", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/xyz", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -63,9 +63,9 @@ func TestRouterMethodNotAllowed(t *testing.T) {
 		method string
 		path   string
 	}{
-		{"put to shorten", http.MethodPut, "/shorten"},
-		{"delete to shorten", http.MethodDelete, "/shorten"},
-		{"post to code path", http.MethodPost, "/abc"},
+		{"put to shorten", http.MethodPut, "/api/v1/shorten"},
+		{"delete to shorten", http.MethodDelete, "/api/v1/shorten"},
+		{"post to code path", http.MethodPost, "/api/v1/abc"},
 	}
 
 	for _, tt := range tests {
@@ -84,7 +84,7 @@ func TestRouterMethodNotAllowed(t *testing.T) {
 func TestRouterGetShortenMatchesWildcard(t *testing.T) {
 	router := setupRouter(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/shorten", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/shorten", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -96,12 +96,34 @@ func TestRouterGetShortenMatchesWildcard(t *testing.T) {
 func TestRouterShortenInvalidBody(t *testing.T) {
 	router := setupRouter(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(`no json`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", strings.NewReader(`no json`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("POST /shorten with invalid body status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+// Swagger UI and the generated spec must be served under /api/v1/swagger/.
+func TestRouterSwagger(t *testing.T) {
+	router := setupRouter(t)
+
+	tests := []struct {
+		path string
+		code int
+	}{
+		{"/api/v1/swagger/index.html", http.StatusOK},
+		{"/api/v1/swagger/doc.json", http.StatusOK},
+	}
+	for _, tt := range tests {
+		req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != tt.code {
+			t.Errorf("GET %s status = %d, want %d", tt.path, rec.Code, tt.code)
+		}
 	}
 }

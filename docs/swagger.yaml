@@ -1,0 +1,83 @@
+basePath: /api/v1
+definitions:
+  main.ShortenRequest:
+    properties:
+      url:
+        example: https://example.com/some-long-url
+        type: string
+    type: object
+  main.ShortenResponse:
+    properties:
+      code:
+        example: a1B
+        type: string
+      short_url:
+        example: http://localhost:8080/api/v1/a1B
+        type: string
+    type: object
+info:
+  contact: {}
+  description: URL shortener with a configurable alphabet and time-to-live, stored
+    in Redis
+  title: Sortener API
+  version: 1.0.0
+paths:
+  /{code}:
+    get:
+      description: looks up the link by code and responds with a 302 redirect to the
+        original URL
+      parameters:
+      - description: short code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: redirect to original URL
+          schema:
+            type: string
+        "404":
+          description: link not found
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Redirect a short code to its original URL
+      tags:
+      - links
+  /shorten:
+    post:
+      consumes:
+      - application/json
+      description: validates the URL, stores it in Redis, and returns a short code
+      parameters:
+      - description: URL to shorten
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.ShortenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.ShortenResponse'
+        "400":
+          description: Body must be JSON / Invalid URL
+          schema:
+            type: string
+        "500":
+          description: Failed to save URL
+          schema:
+            type: string
+      summary: Shorten a URL
+      tags:
+      - links
+swagger: "2.0"

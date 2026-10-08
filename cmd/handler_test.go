@@ -52,14 +52,14 @@ func TestShortenSuccess(t *testing.T) {
 		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
 
-	var resp shortenResponse
+	var resp ShortenResponse
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 	if resp.Code == "" {
 		t.Fatal("response code is empty")
 	}
-	if want := "http://short.test/" + resp.Code; resp.ShortUrl != want {
+	if want := "http://short.test" + apiPrefix + "/" + resp.Code; resp.ShortUrl != want {
 		t.Errorf("short_url = %q, want %q", resp.ShortUrl, want)
 	}
 
