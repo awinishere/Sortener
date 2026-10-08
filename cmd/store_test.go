@@ -117,7 +117,7 @@ func setupStore(t *testing.T) (*Store, *miniredis.Miniredis) {
 
 	mr, err := miniredis.Run()
 	if err != nil {
-		t.Fatalf("failed to start miniredis: %v", err)
+		t.Fatalf("failed to start mini redis: %v", err)
 	}
 	t.Cleanup(mr.Close)
 
