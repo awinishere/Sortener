@@ -8,6 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title Sortener API
+// @version 1.0.0
+// @description URL shortener with a configurable alphabet and time-to-live, stored in Redis
+// @BasePath /api/v1
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("no .env file found, falling back to system environment")

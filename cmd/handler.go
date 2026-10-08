@@ -31,6 +31,17 @@ func validUrl(raw string) bool {
 	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
+// Shorten godoc
+// @Summary Shorten a URL
+// @Description validates the URL, stores it in Redis, and returns a short code
+// @Tags links
+// @Accept json
+// @Produce json
+// @Param request body ShortenRequest true "URL to shorten"
+// @Success 201 {object} ShortenResponse
+// @Failure 400 {string} string "Body must be JSON / Invalid URL"
+// @Failure 500 {string} string "Failed to save URL"
+// @Router /shorten [post]
 func (handler *Handler) Shorten(writer http.ResponseWriter, req *http.Request) {
 	req.Body = http.MaxBytesReader(writer, req.Body, 1024)
 
@@ -61,6 +72,16 @@ func (handler *Handler) Shorten(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Redirect godoc
+// @Summary Redirect a short code to its original URL
+// @Description looks up the link by code and responds with a 302 redirect to the original URL
+// @Tags links
+// @Produce json
+// @Param code path string true "short code"
+// @Success 302 {string} string "redirect to original URL"
+// @Failure 404 {string} string "link not found"
+// @Failure 500 {string} string "internal server error"
+// @Router /{code} [get]
 func (handler *Handler) Redirect(writer http.ResponseWriter, req *http.Request) {
 	target, err := handler.store.Get(req.Context(), req.PathValue("code"))
 	if errors.Is(err, ErrNotFound) {
