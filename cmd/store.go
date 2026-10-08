@@ -75,3 +75,7 @@ func (store *Store) Get(ctx context.Context, code string) (string, error) {
 	}
 	return url, err
 }
+
+func (store *Store) NextID(ctx context.Context) (int64, error) {
+	return store.redis.Incr(ctx, "counter").Result()
+}
