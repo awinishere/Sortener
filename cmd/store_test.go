@@ -9,6 +9,89 @@ import (
 	"github.com/alicebob/miniredis/v2"
 )
 
+func TestNewFromEnv(t *testing.T) {
+	t.Run("missing REDIS_ADDR is an error", func(t *testing.T) {
+		t.Setenv("REDIS_ADDR", "")
+		if _, err := NewFromEnv(); err == nil {
+			t.Error("NewFromEnv() = nil, want error for empty REDIS_ADDR")
+		}
+	})
+
+	t.Run("plain addr with password from env", func(t *testing.T) {
+		mr, err := miniredis.Run()
+		if err != nil {
+			t.Fatalf("miniredis: %v", err)
+		}
+		defer mr.Close()
+		mr.RequireAuth("s3cret")
+
+		t.Setenv("REDIS_ADDR", mr.Addr())
+		t.Setenv("REDIS_PASSWORD", "s3cret")
+
+		store, err := NewFromEnv()
+		if err != nil {
+			t.Fatalf("NewFromEnv() error = %v", err)
+		}
+		if err := store.Ping(context.Background()); err != nil {
+			t.Errorf("Ping() with correct password error = %v", err)
+		}
+	})
+
+	t.Run("wrong password fails ping", func(t *testing.T) {
+		mr, err := miniredis.Run()
+		if err != nil {
+			t.Fatalf("miniredis: %v", err)
+		}
+		defer mr.Close()
+		mr.RequireAuth("s3cret")
+
+		t.Setenv("REDIS_ADDR", mr.Addr())
+		t.Setenv("REDIS_PASSWORD", "wrong")
+
+		store, err := NewFromEnv()
+		if err != nil {
+			t.Fatalf("NewFromEnv() error = %v", err)
+		}
+		if err := store.Ping(context.Background()); err == nil {
+			t.Error("Ping() = nil, want auth error for wrong password")
+		}
+	})
+
+	t.Run("url with embedded credentials parses", func(t *testing.T) {
+		t.Setenv("REDIS_ADDR", "redis://user:p4ss@localhost:6379/0")
+		t.Setenv("REDIS_PASSWORD", "")
+
+		store, err := NewFromEnv()
+		if err != nil {
+			t.Fatalf("NewFromEnv() error = %v", err)
+		}
+		// kredensial dari URL harus dipakai, bukan dari env
+		opt := store.redis.Options()
+		if opt.Username != "user" || opt.Password != "p4ss" {
+			t.Errorf("credentials = %q/%q, want user/p4ss", opt.Username, opt.Password)
+		}
+	})
+
+	t.Run("rediss url enables tls", func(t *testing.T) {
+		t.Setenv("REDIS_ADDR", "rediss://localhost:6379")
+
+		store, err := NewFromEnv()
+		if err != nil {
+			t.Fatalf("NewFromEnv() error = %v", err)
+		}
+		if store.redis.Options().TLSConfig == nil {
+			t.Error("TLSConfig = nil, want TLS enabled for rediss://")
+		}
+	})
+
+	t.Run("invalid url is an error", func(t *testing.T) {
+		t.Setenv("REDIS_ADDR", "http://invalid-scheme.example")
+		if _, err := NewFromEnv(); err == nil {
+			t.Error("NewFromEnv() = nil, want error for unsupported scheme")
+		}
+	})
+}
+
 func TestLoadConfig(t *testing.T) {
 	origAlphabet, origTTL := alphabet, ttl
 	defer func() { alphabet, ttl = origAlphabet, origTTL }()

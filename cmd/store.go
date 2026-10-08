@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -46,6 +47,37 @@ func New(addr string) *Store {
 	return &Store{redis: redis.NewClient(&redis.Options{Addr: addr})}
 }
 
+// NewFromEnv builds a Store from REDIS_ADDR, REDIS_USERNAME and REDIS_PASSWORD.
+// REDIS_ADDR accepts either a plain "host:port" or a redis:// / rediss:// URL
+// (rediss:// enables TLS, as used by most managed/cloud Redis providers).
+func NewFromEnv() (*Store, error) {
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		return nil, errors.New("REDIS_ADDR is required")
+	}
+
+	if strings.Contains(addr, "://") {
+		opt, err := redis.ParseURL(addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid REDIS_ADDR %q: %w", addr, err)
+		}
+		// Credentials embedded in the URL win; otherwise fall back to env vars.
+		if opt.Username == "" {
+			opt.Username = os.Getenv("REDIS_USERNAME")
+		}
+		if opt.Password == "" {
+			opt.Password = os.Getenv("REDIS_PASSWORD")
+		}
+		return &Store{redis: redis.NewClient(opt)}, nil
+	}
+
+	return &Store{redis: redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Username: os.Getenv("REDIS_USERNAME"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+	})}, nil
+}
+
 func encode(n int64) string {
 	var b []byte
 	for n > 0 {
@@ -78,4 +110,8 @@ func (store *Store) Get(ctx context.Context, code string) (string, error) {
 
 func (store *Store) NextID(ctx context.Context) (int64, error) {
 	return store.redis.Incr(ctx, "counter").Result()
+}
+
+func (store *Store) Ping(ctx context.Context) error {
+	return store.redis.Ping(ctx).Err()
 }

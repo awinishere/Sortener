@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,14 @@ func main() {
 		log.Fatalf("config error: %v", err)
 	}
 
-	store := New(env("REDIS_ADDR", "localhost:6379"))
+	store, err := NewFromEnv()
+	if err != nil {
+		log.Fatalf("redis config error: %v", err)
+	}
+	if err := store.Ping(context.Background()); err != nil {
+		log.Fatalf("cannot reach redis: %v", err)
+	}
+
 	h := &Handler{
 		store:   store,
 		baseUrl: env("BASE_URL", "http://localhost:8080"),

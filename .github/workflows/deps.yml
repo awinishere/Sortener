@@ -1,0 +1,38 @@
+name: Dependency check
+
+on:
+  push:
+    paths:
+      - go.mod
+      - go.sum
+      - .github/workflows/deps.yml
+  schedule:
+    - cron: "0 6 * * 1" # every Monday 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify module integrity (hard error)
+        run: go mod verify
+
+      - name: Download dependencies (hard error)
+        run: go mod download
+
+      - name: List outdated modules (warning only)
+        continue-on-error: true
+        run: |
+          echo "## Modules with updates available" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          go list -m -u all | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Vulnerability scan (hard error)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

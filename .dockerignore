@@ -1,0 +1,13 @@
+# Never bake local env/secrets into the image.
+.env
+
+# VCS / IDE
+.git
+.gitignore
+.idea
+
+# Tests & docs of human origin (swagger docs/ IS needed: compiled into the binary)
+*_test.go
+docker-compose.yaml
+Dockerfile
+.dockerignore
