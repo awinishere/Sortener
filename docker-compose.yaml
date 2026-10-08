@@ -1,0 +1,10 @@
+services:
+  store:
+     image: redis:latest
+     ports:
+        - "6379:6379"
+     volumes: ["store:/data"]
+     command: redis-server --appendonly yes
+
+volumes:
+  store:
